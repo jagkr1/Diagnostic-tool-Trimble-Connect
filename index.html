@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Object Access Diagnostic</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script>
+
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --border: #d7dde4;
+      --text: #111827;
+      --muted: #6b7280;
+      --primary: #1f6feb;
+      --primary-dark: #174ea6;
+      --secondary: #475569;
+      --danger: #dc2626;
+      --good: #16a34a;
+      --warning: #f59e0b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 14px 16px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    header p {
+      margin: 5px 0 0;
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+
+    main {
+      padding: 12px;
+      max-width: 980px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 7px;
+      padding: 9px 11px;
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    button:hover { background: var(--primary-dark); }
+
+    button.secondary { background: var(--secondary); }
+    button.secondary:hover { background: #334155; }
+
+    button.danger { background: var(--danger); }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
+      font-size: 12px;
+      color: #374151;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 8px;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .status {
+      padding: 9px;
+      border-radius: 7px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      white-space: pre-wrap;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .card .num {
+      font-size: 20px;
+      font-weight: bold;
+      color: var(--primary);
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+      margin-top: 5px;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0f172a;
+      color: #e5e7eb;
+      border-radius: 8px;
+      padding: 10px;
+      height: 460px;
+      overflow: auto;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+
+    th, td {
+      border-bottom: 1px solid #edf0f3;
+      text-align: left;
+      padding: 6px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f8fafc;
+    }
+
+    .ok { color: var(--good); font-weight: bold; }
+    .warn { color: var(--warning); font-weight: bold; }
+    .bad { color: var(--danger); font-weight: bold; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Object Access Diagnostic</h1>
+    <p>Tests how Trimble Connect Workspace API returns loaded models, objects, selections, and properties.</p>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div class="status" id="status">Connecting to Trimble Connect...</div>
+
+      <div class="buttons">
+        <button onclick="runAllTests()">Run all tests</button>
+        <button class="secondary" onclick="clearOutput()">Clear output</button>
+        <button class="secondary" onclick="downloadDiagnosticJson()">Export diagnostic JSON</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top:0;">Quick tests</h3>
+      <div class="buttons">
+        <button onclick="testModels()">Test loaded models</button>
+        <button onclick="testSelection()">Test selected object</button>
+        <button onclick="testGetObjectsNoArgs()">Test getObjects()</button>
+        <button onclick="testGetObjectsEmptySelector()">Test getObjects({})</button>
+        <button onclick="testGetObjectsVisible()">Test getObjects visible</button>
+        <button onclick="testPropertySelector()">Test property selector</button>
+        <button onclick="testPropertySelectorAndProperties()">Selector + properties</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top:0;">Property selector test</h3>
+      <div class="grid">
+        <div>
+          <label for="propertyPath">Property path</label>
+          <input id="propertyPath" type="text" value="0_Element.MMI" />
+        </div>
+        <div>
+          <label for="propertyValues">Value(s), separated with comma</label>
+          <input id="propertyValues" type="text" value="300,350,400" />
+        </div>
+      </div>
+      <div class="hint">
+        Example: path <b>0_Element.MMI</b>, values <b>300,350,400</b>.
+        You can also test reference properties if the inspector shows their exact paths.
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top:0;">Summary</h3>
+      <div class="summary">
+        <div class="card">
+          <div class="num" id="modelsCount">0</div>
+          <div>Models found</div>
+        </div>
+        <div class="card">
+          <div class="num" id="objectsCount">0</div>
+          <div>Objects found</div>
+        </div>
+        <div class="card">
+          <div class="num" id="propsCount">0</div>
+          <div>Properties read</div>
+        </div>
+        <div class="card">
+          <div class="num" id="workingMethods">0</div>
+          <div>Working methods</div>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Test</th>
+            <th>Status</th>
+            <th>Objects / models</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="testRows"></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top:0;">Raw output</h3>
+      <pre id="output">No tests run yet.</pre>
+    </div>
+  </main>
+
+  <script>
+    let API = null;
+    let diagnostic = {
+      createdAt: new Date().toISOString(),
+      tests: [],
+      raw: {}
+    };
+
+    connectToTrimble();
+
+    async function connectToTrimble() {
+      try {
+        if (!window.TrimbleConnectWorkspace) {
+          setStatus("Workspace API script was not found.");
+          return;
+        }
+
+        API = await TrimbleConnectWorkspace.connect(window.parent, (event, data) => {
+          console.log("Trimble event:", event, data);
+        });
+
+        try {
+          await API.ui.setMenu({
+            title: "Object Diagnostic",
+            command: "object_diagnostic_open"
+          });
+          await API.ui.setActiveMenuItem("object_diagnostic_open");
+        } catch (uiError) {
+          console.warn("UI menu setup failed, but API may still work.", uiError);
+        }
+
+        setStatus("Connected. Open models in the 3D viewer, select one object, then run the tests.");
+      } catch (error) {
+        console.error(error);
+        setStatus("Could not connect to Trimble Connect Workspace API.\n\n" + errorMessage(error));
+      }
+    }
+
+    async function runAllTests() {
+      clearOutput(false);
+      await testModels();
+      await testSelection();
+      await testGetObjectsNoArgs();
+      await testGetObjectsEmptySelector();
+      await testGetObjectsVisible();
+      await testPropertySelector();
+      await testPropertySelectorAndProperties();
+      setStatus("All tests finished. Export diagnostic JSON and send it back if you want me to analyze it.");
+    }
+
+    async function testModels() {
+      await runTest("Loaded models", async () => {
+        const result = await trySeveral("models", [
+          ["API.viewer.getModels()", () => API.viewer.getModels()],
+          ["API.viewer.getLoadedModels()", () => API.viewer.getLoadedModels()],
+          ["API.project.getModels()", () => API.project.getModels()],
+          ["API.viewer.models.getAll()", () => API.viewer.models.getAll()]
+        ]);
+
+        return result;
+      });
+    }
+
+    async function testSelection() {
+      await runTest("Selected object + properties", async () => {
+        const selection = await API.viewer.getSelection();
+        const groups = normalizeModelObjectGroups(selection);
+
+        const result = {
+          selectionRaw: selection,
+          normalizedGroups: groups,
+          objectProperties: null,
+          flattenedPropertiesSample: null
+        };
+
+        if (groups.length > 0) {
+          const firstGroup = groups[0];
+          const firstObjectId = firstGroup.objectRuntimeIds[0];
+          const props = await API.viewer.getObjectProperties(firstGroup.modelId, [firstObjectId]);
+          result.objectProperties = props;
+
+          if (props && props.length > 0) {
+            result.flattenedPropertiesSample = flattenProperties(props[0]);
+          }
+        }
+
+        return result;
+      });
+    }
+
+    async function testGetObjectsNoArgs() {
+      await runTest("getObjects()", async () => {
+        const result = await API.viewer.getObjects();
+        return result;
+      });
+    }
+
+    async function testGetObjectsEmptySelector() {
+      await runTest("getObjects({})", async () => {
+        const result = await API.viewer.getObjects({});
+        return result;
+      });
+    }
+
+    async function testGetObjectsVisible() {
+      await runTest("getObjects visible", async () => {
+        const attempts = [];
+
+        const selectors = [
+          { name: "{ state: { visible: true } }", selector: { state: { visible: true } } },
+          { name: "{ visible: true }", selector: { visible: true } },
+          { name: "{ parameter: { visible: true } }", selector: { parameter: { visible: true } } },
+          { name: "{ modelObjectIds: [] }", selector: { modelObjectIds: [] } }
+        ];
+
+        for (const item of selectors) {
+          try {
+            const value = await API.viewer.getObjects(item.selector);
+            attempts.push({
+              name: item.name,
+              ok: true,
+              count: countObjects(value),
+              resultPreview: preview(value)
+            });
+          } catch (error) {
+            attempts.push({
+              name: item.name,
+              ok: false,
+              error: errorMessage(error)
+            });
+          }
+        }
+
+        return attempts;
+      });
+    }
+
+    async function testPropertySelector() {
+      await runTest("Property selector getObjects", async () => {
+        const selector = buildPropertySelector();
+        const attempts = [];
+
+        const variants = [
+          { name: "getObjects(selector)", fn: () => API.viewer.getObjects(selector) },
+          { name: "getObjects({ parameter: selector.parameter })", fn: () => API.viewer.getObjects({ parameter: selector.parameter }) },
+          { name: "setObjectState(selector, temp color)", fn: async () => {
+              await API.viewer.setObjectState(selector, { color: "#00ffff" });
+              return "setObjectState accepted selector and applied temporary cyan color";
+            }
+          }
+        ];
+
+        for (const variant of variants) {
+          try {
+            const value = await variant.fn();
+            attempts.push({
+              name: variant.name,
+              ok: true,
+              count: countObjects(value),
+              resultPreview: preview(value)
+            });
+          } catch (error) {
+            attempts.push({
+              name: variant.name,
+              ok: false,
+              error: errorMessage(error)
+            });
+          }
+        }
+
+        return {
+          selector,
+          attempts
+        };
+      });
+    }
+
+    async function testPropertySelectorAndProperties() {
+      await runTest("Property selector + object properties", async () => {
+        const selector = buildPropertySelector();
+        const objectsResult = await API.viewer.getObjects(selector);
+        const groups = normalizeModelObjectGroups(objectsResult);
+
+        const output = {
+          selector,
+          objectsRaw: objectsResult,
+          normalizedGroups: groups,
+          propertySamples: []
+        };
+
+        for (const group of groups.slice(0, 5)) {
+          const sampleIds = group.objectRuntimeIds.slice(0, 10);
+          if (!sampleIds.length) continue;
+
+          const props = await API.viewer.getObjectProperties(group.modelId, sampleIds);
+
+          output.propertySamples.push({
+            modelId: group.modelId,
+            requestedIds: sampleIds,
+            returnedCount: Array.isArray(props) ? props.length : 0,
+            firstFlattenedProperties: props && props[0] ? flattenProperties(props[0]) : null
+          });
+        }
+
+        return output;
+      });
+    }
+
+    async function runTest(name, fn) {
+      ensureApi();
+
+      setStatus("Running: " + name + "...");
+      appendOutput("\\n\\n===== " + name + " =====\\n");
+
+      const started = performance.now();
+
+      try {
+        const result = await fn();
+        const ms = Math.round(performance.now() - started);
+        const objectCount = countObjects(result);
+        const modelCount = countModels(result);
+        const propCount = countFlattenedPropsInResult(result);
+
+        diagnostic.tests.push({
+          name,
+          ok: true,
+          ms,
+          objectCount,
+          modelCount,
+          propCount,
+          result
+        });
+
+        diagnostic.raw[name] = result;
+
+        addTestRow(name, "ok", objectCount || modelCount || "", "Finished in " + ms + " ms");
+        appendOutput(safeStringify(result));
+        updateSummary();
+
+        return result;
+      } catch (error) {
+        const ms = Math.round(performance.now() - started);
+
+        diagnostic.tests.push({
+          name,
+          ok: false,
+          ms,
+          error: errorMessage(error)
+        });
+
+        addTestRow(name, "bad", "", errorMessage(error));
+        appendOutput("ERROR: " + errorMessage(error));
+        updateSummary();
+      }
+    }
+
+    function trySeveral(label, attempts) {
+      return new Promise(async (resolve) => {
+        const results = [];
+
+        for (const [name, fn] of attempts) {
+          try {
+            if (typeof fn !== "function") continue;
+            const value = await fn();
+            results.push({
+              name,
+              ok: true,
+              count: countObjects(value) || countModels(value),
+              resultPreview: preview(value),
+              result: value
+            });
+          } catch (error) {
+            results.push({
+              name,
+              ok: false,
+              error: errorMessage(error)
+            });
+          }
+        }
+
+        resolve(results);
+      });
+    }
+
+    function buildPropertySelector() {
+      const path = document.getElementById("propertyPath").value.trim();
+      const valuesText = document.getElementById("propertyValues").value.trim();
+
+      const values = valuesText
+        .split(",")
+        .map(v => v.trim())
+        .filter(Boolean)
+        .flatMap(v => {
+          const numberValue = Number(v);
+          if (v !== "" && Number.isFinite(numberValue)) {
+            return [v, numberValue];
+          }
+          return [v];
+        });
+
+      return {
+        parameter: {
+          properties: {
+            [path]: values
+          }
+        }
+      };
+    }
+
+    function normalizeModelObjectGroups(value) {
+      if (!value) return [];
+
+      if (Array.isArray(value.modelObjectIds)) {
+        return value.modelObjectIds
+          .map(group => ({
+            modelId: group.modelId || group.model || group.id,
+            objectRuntimeIds: group.objectRuntimeIds || group.runtimeIds || group.ids || []
+          }))
+          .filter(group => group.modelId && group.objectRuntimeIds.length);
+      }
+
+      if (Array.isArray(value)) {
+        return value.flatMap(item => {
+          if (!item) return [];
+
+          if (item.modelId && Array.isArray(item.objectRuntimeIds)) {
+            return [{
+              modelId: item.modelId,
+              objectRuntimeIds: item.objectRuntimeIds
+            }];
+          }
+
+          if (item.modelId && Array.isArray(item.ids)) {
+            return [{
+              modelId: item.modelId,
+              objectRuntimeIds: item.ids
+            }];
+          }
+
+          if (item.modelObjectIds) {
+            return normalizeModelObjectGroups(item);
+          }
+
+          return [];
+        });
+      }
+
+      if (value.modelId && Array.isArray(value.objectRuntimeIds)) {
+        return [{
+          modelId: value.modelId,
+          objectRuntimeIds: value.objectRuntimeIds
+        }];
+      }
+
+      return [];
+    }
+
+    function flattenProperties(object) {
+      const output = {};
+
+      function add(path, value) {
+        if (!path) return;
+        if (value === undefined || value === null) return;
+        if (typeof value === "object") return;
+        output[path] = String(value);
+      }
+
+      function walk(node, prefix) {
+        if (node === null || node === undefined) return;
+
+        if (Array.isArray(node)) {
+          node.forEach(item => walk(item, prefix));
+          return;
+        }
+
+        if (typeof node !== "object") {
+          add(prefix, node);
+          return;
+        }
+
+        const possibleName = node.name || node.Name || node.key || node.Key || node.displayName || node.label;
+        const possibleValue = node.value ?? node.Value ?? node.val ?? node.text ?? node.Text;
+        const currentPath = possibleName
+          ? (prefix ? prefix + "." + possibleName : String(possibleName))
+          : prefix;
+
+        if (possibleName && possibleValue !== undefined && possibleValue !== null && typeof possibleValue !== "object") {
+          add(currentPath, possibleValue);
+        }
+
+        const childCollections = [
+          node.properties,
+          node.Properties,
+          node.children,
+          node.Children,
+          node.items,
+          node.Items,
+          node.propertySets,
+          node.PropertySets,
+          node.parameters,
+          node.Parameters
+        ];
+
+        childCollections.forEach(children => {
+          if (children) walk(children, currentPath);
+        });
+
+        Object.keys(node).forEach(key => {
+          if ([
+            "name", "Name", "key", "Key", "displayName", "label",
+            "value", "Value", "val", "text", "Text",
+            "properties", "Properties", "children", "Children",
+            "items", "Items", "propertySets", "PropertySets",
+            "parameters", "Parameters"
+          ].includes(key)) {
+            return;
+          }
+
+          const value = node[key];
+          if (value === undefined || value === null) return;
+
+          const newPath = prefix ? prefix + "." + key : key;
+
+          if (typeof value === "object") {
+            walk(value, newPath);
+          } else {
+            add(newPath, value);
+          }
+        });
+      }
+
+      walk(object, "");
+      return output;
+    }
+
+    function countObjects(value) {
+      const groups = normalizeModelObjectGroups(value);
+      if (groups.length) {
+        return groups.reduce((sum, group) => sum + group.objectRuntimeIds.length, 0);
+      }
+
+      if (Array.isArray(value)) {
+        let count = 0;
+        value.forEach(item => {
+          if (item && Array.isArray(item.objectRuntimeIds)) count += item.objectRuntimeIds.length;
+          else if (item && Array.isArray(item.ids)) count += item.ids.length;
+        });
+        return count;
+      }
+
+      return 0;
+    }
+
+    function countModels(value) {
+      if (!value) return 0;
+
+      if (Array.isArray(value)) {
+        const likelyModels = value.filter(item =>
+          item && typeof item === "object" &&
+          (item.id || item.modelId || item.name || item.versionId || item.model)
+        );
+        return likelyModels.length;
+      }
+
+      if (Array.isArray(value.models)) return value.models.length;
+      if (Array.isArray(value.loadedModels)) return value.loadedModels.length;
+
+      const groups = normalizeModelObjectGroups(value);
+      if (groups.length) return groups.length;
+
+      return 0;
+    }
+
+    function countFlattenedPropsInResult(value) {
+      if (!value) return 0;
+
+      if (value.flattenedPropertiesSample) {
+        return Object.keys(value.flattenedPropertiesSample).length;
+      }
+
+      if (value.propertySamples && value.propertySamples.length) {
+        return value.propertySamples.reduce((sum, sample) => {
+          return sum + (sample.firstFlattenedProperties ? Object.keys(sample.firstFlattenedProperties).length : 0);
+        }, 0);
+      }
+
+      return 0;
+    }
+
+    function preview(value) {
+      if (value === undefined) return "undefined";
+      const text = safeStringify(value);
+      return text.length > 1500 ? text.slice(0, 1500) + "\\n...preview truncated..." : text;
+    }
+
+    function safeStringify(value) {
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch (error) {
+        return String(value);
+      }
+    }
+
+    function addTestRow(name, status, count, notes) {
+      const tbody = document.getElementById("testRows");
+      const tr = document.createElement("tr");
+
+      const statusText = status === "ok" ? "OK" : "Failed";
+      const statusClass = status === "ok" ? "ok" : "bad";
+
+      tr.innerHTML = `
+        <td>${escapeHtml(name)}</td>
+        <td class="${statusClass}">${statusText}</td>
+        <td>${escapeHtml(count)}</td>
+        <td>${escapeHtml(notes)}</td>
+      `;
+
+      tbody.appendChild(tr);
+    }
+
+    function updateSummary() {
+      const models = Math.max(0, ...diagnostic.tests.map(t => t.modelCount || 0));
+      const objects = Math.max(0, ...diagnostic.tests.map(t => t.objectCount || 0));
+      const props = Math.max(0, ...diagnostic.tests.map(t => t.propCount || 0));
+      const working = diagnostic.tests.filter(t => t.ok).length;
+
+      document.getElementById("modelsCount").textContent = models;
+      document.getElementById("objectsCount").textContent = objects;
+      document.getElementById("propsCount").textContent = props;
+      document.getElementById("workingMethods").textContent = working;
+    }
+
+    function clearOutput(resetDiagnostic = true) {
+      document.getElementById("output").textContent = "Output cleared.";
+      document.getElementById("testRows").innerHTML = "";
+
+      if (resetDiagnostic) {
+        diagnostic = {
+          createdAt: new Date().toISOString(),
+          tests: [],
+          raw: {}
+        };
+        updateSummary();
+      }
+    }
+
+    function appendOutput(text) {
+      const output = document.getElementById("output");
+      if (output.textContent === "No tests run yet." || output.textContent === "Output cleared.") {
+        output.textContent = "";
+      }
+      output.textContent += text + "\\n";
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function downloadDiagnosticJson() {
+      const blob = new Blob([JSON.stringify(diagnostic, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = "trimble-object-access-diagnostic.json";
+      document.body.appendChild(a);
+      a.click();
+
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function ensureApi() {
+      if (!API) throw new Error("API is not connected yet.");
+    }
+
+    function setStatus(message) {
+      document.getElementById("status").textContent = message;
+    }
+
+    function errorMessage(error) {
+      if (!error) return "Unknown error";
+      if (error.message) return error.message;
+      return String(error);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>

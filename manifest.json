@@ -1,0 +1,6 @@
+{
+  "title": "Object Access Diagnostic",
+  "url": "https://YOUR-GITHUB-USERNAME.github.io/YOUR-REPOSITORY-NAME/index.html?v=1",
+  "description": "Tests how the Trimble Connect Workspace API returns loaded objects and properties.",
+  "enabled": true
+}
